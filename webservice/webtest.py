@@ -243,73 +243,74 @@ class geteventsbylocation:
 		start_info["search_type"] = type
 		start_info["range"] = range
 		return_data = {}
-		try:
-			with connection() as conn:
-				if(type == "zip"):
-					get_starting_location = r.db(RDB_CONFIG['db']).table(tables['locations']).filter({'zip': str(location)})
-				elif(type == "city"):
-					get_starting_location = r.db(RDB_CONFIG['db']).table(tables['locations']).filter({'primary_city': str(location.capitalize())})
-				else:
-					get_starting_location = r.db(RDB_CONFIG['db']).table(tables['locations']).filter({'state': str(location).upper()})			
-				
-				result = get_starting_location.run(conn)
-				query = list(result)
-				if(len(query) == 1):
-					for index,item in enumerate(query):
-						start_lat = item['lat']
-						start_lon = item['long']
-					lat_range_top = round(float(start_lat) + (range/49.0),2)
-					lat_range_bottom = round(float(start_lat) - (range/49.0),2)
-					lon_range_top = round(float(start_lon) + (range/69.0),2)
-					lon_range_bottom = round(float(start_lon) - (range/69.0),2)
+#		try:
+		with connection() as conn:
+			if(type == "zip"):
+				get_starting_location = r.db(RDB_CONFIG['db']).table(tables['locations']).filter({'zip': str(location)})
+			elif(type == "city"):
+				get_starting_location = r.db(RDB_CONFIG['db']).table(tables['locations']).filter({'primary_city': str(location.capitalize())})
+			else:
+				get_starting_location = r.db(RDB_CONFIG['db']).table(tables['locations']).filter({'state': str(location).upper()})			
+			
+			result = get_starting_location.run(conn)
+			query = list(result)
+			if(len(query) == 1):
+				for index,item in enumerate(query):
+					start_lat = item['lat']
+					start_lon = item['long']
+				lat_range_top = round(float(start_lat) + (range/49.0),2)
+				lat_range_bottom = round(float(start_lat) - (range/49.0),2)
+				lon_range_top = round(float(start_lon) + (range/69.0),2)
+				lon_range_bottom = round(float(start_lon) - (range/69.0),2)
 
-					queryString = r.db(RDB_CONFIG['db']).table(tables['locations']).filter( lambda row: (row['lat'] >= lat_range_bottom) & (row['lat'] <= lat_range_top) & (row['long'] <= lon_range_top) & (row['long'] >= lon_range_bottom))
-					query = list(queryString.run(conn))
+				queryString = r.db(RDB_CONFIG['db']).table(tables['locations']).filter( lambda row: (row['lat'] >= lat_range_bottom) & (row['lat'] <= lat_range_top) & (row['long'] <= lon_range_top) & (row['long'] >= lon_range_bottom))
+				query = list(queryString.run(conn))
 
-				
-				zipsFound = {}
-				eventsFound = {}
-				events_already_added = []
-				i = 0
-				totalFound = 0
-				zipString = ""
-				for index, item in enumerate(query):
-					invididualZip = {}
-					invididualZip['zip'] = str(item['zip'])
-					invididualZip['id'] = str(item['id'])
-					zipsFound[str(i)] = invididualZip
-					zipString = zipString +","+item['zip']+""
-					i += 1
-				zipString = zipString[1:]
-	#			print(zipString)
-#				eventString = r.db('race_events').table('events').filter(r.row['zip']==item['zip']).order_by(r.asc('date'))
-				eventString = r.db('race_events').table('events').get_all(zipString.split(','), {'index': "zip"})
-	#			print(eventString)
-				eventQuery = list(eventString.run(conn))
-				totalFound += len(eventQuery)
-				for index, item in enumerate(eventQuery):
-					individualEvent = {}
-					individualEvent['Zip'] = str(item['zip'])
-					individualEvent['Created'] = str(item['created'])
-					individualEvent["id"] = removeNonAscii(item["id"])
-					individualEvent["date"] = removeNonAscii(item["date"])
-					individualEvent["title"] = removeNonAscii(item["title"])
-					individualEvent["time"] = removeNonAscii(item["time"])
-					individualEvent["location"] = removeNonAscii(item["location"])
-					individualEvent["cost"] = item["cost"]
-					individualEvent["Promoted"] = str2bool(item['promoted'])
-					itemcheck = item["id"] in events_already_added
-					if(itemcheck == False):
-						eventsFound[str(item["id"])] = individualEvent
-						events_already_added.append(item["id"])
-				return_data['zips_found'] = zipsFound;
-				return_data['events_found'] = eventsFound
-				start_info['events_found'] = totalFound
-				start_info['total_returned'] = len(eventsFound)
-				return_data['start_info'] = start_info
+			
+			zipsFound = {}
+			eventsFound = {}
+			events_already_added = []
+			i = 0
+			totalFound = 0
+			zipString = ""
+			for index, item in enumerate(query):
+				invididualZip = {}
+				invididualZip['zip'] = str(item['zip'])
+				invididualZip['id'] = str(item['id'])
+				zipsFound[str(i)] = invididualZip
+				zipString = zipString +","+item['zip']+""
+				i += 1
+			return_data['zips_found'] = zipsFound;
+			zipString = zipString[1:]
+#			print(zipString)
+#			eventString = r.db('race_events').table('events').filter(r.row['zip']==item['zip']).order_by(r.asc('date'))
+			eventString = r.db('race_events').table('events').get_all(zipString.split(','), {'index': "zip"})
+			print(eventString)
+			eventQuery = list(eventString.run(conn))
+			totalFound += len(eventQuery)
+			for index, item in enumerate(eventQuery):
+				individualEvent = {}
+				individualEvent['Zip'] = str(item['zip'])
+				individualEvent['Created'] = str(item['created'])
+				individualEvent["id"] = removeNonAscii(item["id"])
+				individualEvent["date"] = removeNonAscii(item["date"])
+				individualEvent["title"] = removeNonAscii(item["title"])
+				individualEvent["time"] = removeNonAscii(item["time"])
+				individualEvent["location"] = removeNonAscii(item["location"])
+				individualEvent["cost"] = item["cost"]
+				individualEvent["Promoted"] = str2bool(item['promoted'])
+				itemcheck = item["id"] in events_already_added
+				if(itemcheck == False):
+					eventsFound[str(item["id"])] = individualEvent
+					events_already_added.append(item["id"])
+
+			return_data['events_found'] = eventsFound
+			start_info['events_found'] = totalFound
+			start_info['total_returned'] = len(eventsFound)
+			return_data['start_info'] = start_info
 		
-		except RqlRuntimeError:
-	       		print 'Database down?'
+#		except RqlRuntimeError:
+#	       		print 'Database down?'
 		return json.dumps(return_data)
 class getevent:
 	def GET(self,id):
